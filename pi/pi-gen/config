@@ -1,0 +1,16 @@
+IMG_NAME=XtreamTV
+RELEASE=bookworm
+STAGE_LIST="stage0 stage1 stage2 stage-xtream"
+TARGET_HOSTNAME=xtream-tv
+FIRST_USER_NAME=xtream
+FIRST_USER_PASS=changeme-now
+DISABLE_FIRST_BOOT_USER_RENAME=1
+ENABLE_SSH=0
+LOCALE_DEFAULT=en_AU.UTF-8
+KEYBOARD_KEYMAP=us
+KEYBOARD_LAYOUT="English (US)"
+TIMEZONE_DEFAULT=Australia/Melbourne
+# Wi-Fi baked into the image (optional - or use Ethernet / edit the file after flashing):
+#WPA_COUNTRY=AU
+#WPA_ESSID=YourWifiName
+#WPA_PASSWORD=YourWifiPassword

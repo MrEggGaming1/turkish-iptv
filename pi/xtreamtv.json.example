@@ -1,0 +1,13 @@
+{
+  "server": "http://your-provider.example.com:8080",
+  "username": "your-username",
+  "password": "your-password",
+  "auto_select": ["Australia", "News"],
+  "timezone": "Australia/Melbourne",
+  "update_repo": "your-github-name/your-repo",
+  "update_mode": "release",
+  "update_branch": "main",
+  "update_token": "",
+  "wifi_ssid": "",
+  "wifi_password": ""
+}
