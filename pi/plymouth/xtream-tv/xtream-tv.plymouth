@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Xtream TV
+Description=Raspberry Pi IPTV boot screen with logo, progress bar and friendly status text
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/xtream-tv
+ScriptFile=/usr/share/plymouth/themes/xtream-tv/xtream-tv.script

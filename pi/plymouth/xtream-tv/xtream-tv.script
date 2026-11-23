@@ -1,0 +1,159 @@
+# Xtream TV boot / shutdown screen (Plymouth "script" module).
+# Logo, a smooth progress bar, and short plain-English status text taken from the real boot messages.
+
+Window.SetBackgroundTopColor(0.010, 0.005, 0.040);
+Window.SetBackgroundBottomColor(0.010, 0.005, 0.040);
+
+sw = Window.GetWidth();
+sh = Window.GetHeight();
+
+# ---- logo (feathered edges blend into the background colour) ----
+logo.src = Image("logo.png");
+logo.h = Math.Int(sh * 0.78);
+logo.w = Math.Int(logo.src.GetWidth() * logo.h / logo.src.GetHeight());
+logo.sprite = Sprite(logo.src.Scale(logo.w, logo.h));
+logo.sprite.SetX(Math.Int((sw - logo.w) / 2));
+logo.sprite.SetY(Math.Int(sh * 0.02));
+logo.sprite.SetZ(10);
+logo.sprite.SetOpacity(0);
+
+# ---- progress bar ----
+bar.w = Math.Int(sw * 0.32);
+bar.h = Math.Max(6, Math.Int(sh * 0.009));
+bar.x = Math.Int((sw - bar.w) / 2);
+bar.y = Math.Int(sh * 0.02) + logo.h + Math.Int(sh * 0.025);
+bar.fill_src = Image("fill.png");
+bar.glow_src = Image("glow.png");
+bar.track = Sprite(Image("track.png").Scale(bar.w, bar.h));
+bar.track.SetX(bar.x);
+bar.track.SetY(bar.y);
+bar.track.SetZ(20);
+bar.fill = Sprite();
+bar.fill.SetX(bar.x);
+bar.fill.SetY(bar.y);
+bar.fill.SetZ(30);
+bar.glow_size = bar.h * 4;
+bar.glow = Sprite(bar.glow_src.Scale(bar.glow_size, bar.glow_size));
+bar.glow.SetZ(25);
+
+# ---- status text ----
+status.font = "Sans " + Math.Int(sh / 56);
+status.y = bar.y + bar.h + Math.Int(sh * 0.022);
+status.sprite = Sprite();
+status.sprite.SetZ(40);
+status.text = "";
+
+# ---- state ----
+state.frame = 0;
+state.shown = 0;       # what the bar currently shows (0..1)
+state.target = 0.04;   # where it is heading
+state.mode = Plymouth.GetMode();
+
+fun SetStatus(text) {
+    if (text != status.text) {
+        status.text = text;
+        img = Image.Text(text, 0.80, 0.83, 0.92, 1, status.font);
+        status.sprite.SetImage(img);
+        status.sprite.SetX(Math.Int((sw - img.GetWidth()) / 2));
+        status.sprite.SetY(status.y);
+    }
+}
+
+# case-insensitive trick: callers pass fragments that skip the first letter ("etwork" matches Network/network)
+fun Contains(hay, needle) {
+    n = needle.Length();
+    h = hay.Length();
+    i = 0;
+    found = 0;
+    while (found == 0 && i + n <= h) {
+        j = 0;
+        while (j < n && hay.CharAt(i + j) == needle.CharAt(j)) {
+            j = j + 1;
+        }
+        if (j == n) {
+            found = 1;
+        }
+        i = i + 1;
+    }
+    return found;
+}
+
+fun Stage(label, floor) {
+    SetStatus(label);
+    if (floor > state.target) {
+        state.target = floor;
+    }
+}
+
+fun message_callback(text) {
+    if (state.mode != "shutdown") {
+        if (Contains(text, "ile System") || Contains(text, "ile system") || Contains(text, "sck")) {
+            Stage("Checking storage...", 0.10);
+        } else if (Contains(text, "ynchroniz") || Contains(text, "imesync")) {
+            Stage("Setting the clock...", 0.45);
+        } else if (Contains(text, "etwork") || Contains(text, "Wi-Fi") || Contains(text, "wpa_")) {
+            Stage("Connecting to the network...", 0.50);
+        } else if (Contains(text, "luetooth")) {
+            Stage("Starting Bluetooth...", 0.60);
+        } else if (Contains(text, "ound") || Contains(text, "udio") || Contains(text, "ipewire")) {
+            Stage("Preparing audio...", 0.66);
+        } else if (Contains(text, "Xtream")) {
+            Stage("Starting Xtream TV...", 0.85);
+        } else if (Contains(text, "ulti-User") || Contains(text, "ogin") || Contains(text, "essions")) {
+            Stage("Almost ready...", 0.80);
+        }
+    }
+}
+Plymouth.SetMessageFunction(message_callback);
+
+fun boot_progress_callback(time, progress) {
+    # Plymouth's own estimate; only ever moves the bar forward
+    p = progress * 0.9;
+    if (p > state.target) {
+        state.target = p;
+    }
+}
+Plymouth.SetBootProgressFunction(boot_progress_callback);
+
+fun refresh_callback() {
+    state.frame = state.frame + 1;
+
+    # logo fades in over ~0.8 s
+    if (state.frame < 40) {
+        logo.sprite.SetOpacity(state.frame / 40);
+    } else {
+        logo.sprite.SetOpacity(1);
+    }
+
+    if (state.mode == "shutdown") {
+        # bar drains while the Pi saves your place and powers down
+        state.target = 0.06;
+        state.shown = state.shown + (state.target - state.shown) * 0.02;
+    } else {
+        # slow creep so the bar never looks frozen, capped until the app takes over
+        if (state.target < 0.93) {
+            state.target = state.target + 0.0004;
+        }
+        state.shown = state.shown + (state.target - state.shown) * 0.06;
+    }
+
+    fw = Math.Int(bar.w * state.shown);
+    if (fw < bar.h) {
+        fw = bar.h;
+    }
+    bar.fill.SetImage(bar.fill_src.Scale(fw, bar.h));
+    bar.glow.SetX(bar.x + fw - Math.Int(bar.glow_size / 2));
+    bar.glow.SetY(bar.y + Math.Int(bar.h / 2) - Math.Int(bar.glow_size / 2));
+    # gentle pulse on the glowing bar head
+    bar.glow.SetOpacity(0.55 + 0.35 * Math.Sin(state.frame / 8));
+}
+Plymouth.SetRefreshFunction(refresh_callback);
+
+if (state.mode == "shutdown") {
+    state.shown = 1;
+    SetStatus("Saving your place and shutting down...");
+} else if (state.mode == "updates") {
+    SetStatus("Installing updates - please do not unplug...");
+} else {
+    SetStatus("Starting up...");
+}
